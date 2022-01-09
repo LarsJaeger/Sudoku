@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <math.h>
+#include <ctype.h>
 
 #define LEN(array) (sizeof(array)/sizeof(array[0]))
 
@@ -46,15 +47,17 @@ void Draw(char playerName[], const char value_space[], const int value_space_len
     }
 
     // draw scale
-    int counter = 0;
     for (int i = 1; i < frameSize; i++) {
-        if (i % 4 == 1) {
+        if (i % (squareRoot + 1) == 1) {
             continue;
         }
-        frame[0][i] = alphabet[counter];
-        frame[i][0] = counter + 1 + '0';
+        frame[0][i] = alphabet[i - 2 - ((i - 2) / (squareRoot + 1))];
 
-        counter++;
+        if((i - 1 - ((i - 2) / (squareRoot + 1))) <= 9) {
+            frame[i][0] = (char) ((i - 1 - ((i - 2) / (squareRoot + 1))) + '0');
+        } else {
+            frame[i][0] = toupper(alphabet[(i - 11 - ((i - 2) / (squareRoot + 1)))]);
+        }
     }
 
 
@@ -70,7 +73,9 @@ void Draw(char playerName[], const char value_space[], const int value_space_len
 }
 
 int main() {
-    const char values[] = {'1', '2', '3', '4', '5', '6', '7', '8', '9'}; // length must be a square number
+    // length of values must be a square number
+    const char values[] = {'1', '2', '3', '4', '5', '6', '7', '8', '9',};
+    //'0', 'A', 'B', 'C', 'D', 'E', 'F'};
 
     if (sizeof(values) == 0) {
         printf("[ERROR]: values cannot be empty");
