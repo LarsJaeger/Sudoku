@@ -4,21 +4,14 @@
 
 #define LEN(array) (sizeof(array)/sizeof(array[0]))
 
-void Draw(char playerName[], const char value_space[], const int value_space_len) {
-    const int squareRoot = (int) sqrt(value_space_len);
-    char fieldValues[squareRoot * squareRoot][squareRoot * squareRoot];
-    // fill fieldValues with crap
-    for (int a = 0; a < LEN(fieldValues); a++) {
-        for (int b = 0; b < LEN(fieldValues); b++) {
-            fieldValues[a][b] = '*';
-        }
-    }
+void
+Draw(char playerName[], const int squareRoot, const char xScale[], int xScaleLen, const char yScale[], int yScaleLen,
+     char fieldValues[]) {
+
 
     const int frameSize = 2 + squareRoot * squareRoot + squareRoot;
     char frame[frameSize][frameSize];
-    const char alphabet[26] = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
-                               'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
-                               's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
+
 
     // draw lines and fieldValues
     for (int x = 0; x < frameSize; x += 1) {
@@ -33,10 +26,10 @@ void Draw(char playerName[], const char value_space[], const int value_space_len
                         frame[x][y] = '|';
                     } else {
                         // insert fieldValues
-                        if(x != 0 && y != 0) {
-                            frame[x][y] = fieldValues[x - 2 - ((x - 2) / (squareRoot + 1))][y - 2 - ((y - 2) / (squareRoot + 1))];
-                        }
-                        else {
+                        if (x != 0 && y != 0) {
+                            frame[x][y] = fieldValues[(x - 2 - ((x - 2) / (squareRoot + 1))) * squareRoot * squareRoot +
+                                                      (y - 2 - ((y - 2) / (squareRoot + 1)))];
+                        } else {
                             frame[x][y] = ' ';
                         }
 
@@ -51,16 +44,9 @@ void Draw(char playerName[], const char value_space[], const int value_space_len
         if (i % (squareRoot + 1) == 1) {
             continue;
         }
-        frame[0][i] = alphabet[i - 2 - ((i - 2) / (squareRoot + 1))];
-
-        if((i - 1 - ((i - 2) / (squareRoot + 1))) <= 9) {
-            frame[i][0] = (char) ((i - 1 - ((i - 2) / (squareRoot + 1))) + '0');
-        } else {
-            frame[i][0] = toupper(alphabet[(i - 11 - ((i - 2) / (squareRoot + 1)))]);
-        }
+        frame[0][i] = yScale[i - 2 - ((i - 2) / (squareRoot + 1))];
+        frame[i][0] = xScale[i - 2 - ((i - 2) / (squareRoot + 1))];
     }
-
-
 
     // print frame
     printf("%s\n", playerName);
@@ -72,10 +58,45 @@ void Draw(char playerName[], const char value_space[], const int value_space_len
     }
 }
 
+int FindIndex(int a[], int size, int value) {
+    int index = 0;
+    while (index < size && a[index] != value) ++index;
+    return (index == size ? -1 : index);
+}
+
+void setFieldValue(char field[], int fieldLen, char x, char y, char val) {
+    field[fieldLen * x + y] = val;
+}
+
 int main() {
     // length of values must be a square number
     const char values[] = {'1', '2', '3', '4', '5', '6', '7', '8', '9',};
     //'0', 'A', 'B', 'C', 'D', 'E', 'F'};
+    const int valuesLen = LEN(values);
+    if (valuesLen > 36) {
+        printf("[ERROR]: more than 36 values, sudokus with more than 36 values would require a major rework,"
+               " so they are currently not supported");
+    }
+
+    //generate scales
+    const char alphabet[26] = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
+                               'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
+                               's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
+    char xScale[valuesLen];
+    char yScale[valuesLen];
+    for (int i = 0; i < valuesLen; i++) {
+        if (i <= LEN(alphabet)) {
+            xScale[i] = toupper(alphabet[i]);
+        } else {
+            xScale[i] = (char) (i - LEN(alphabet) + '0');
+        }
+        if (i <= 9) {
+            yScale[i] = (char) (i - 1 + '0');
+        } else {
+            yScale[i] = toupper(alphabet[i - 9]);
+        }
+    }
+
 
     if (sizeof(values) == 0) {
         printf("[ERROR]: values cannot be empty");
@@ -86,10 +107,57 @@ int main() {
         return 1;
     }
 
+
+    const int squareRoot = (int) sqrt(LEN(values));
+    char fieldValues[squareRoot * squareRoot * squareRoot * squareRoot];
+    // fill fieldValues with crap
+    for (int a = 0; a < squareRoot * squareRoot; a++) {
+        for (int b = 0; b < squareRoot * squareRoot; b++) {
+            fieldValues[a * squareRoot * squareRoot + b] = '*';
+        }
+    }
+
+    // get player name
     printf("Enter your name: ");
     char name[15];
     scanf("%15s", name);
-    Draw(name, values, LEN(values));
+
+
+
+    Draw(name,
+         squareRoot,
+         xScale, LEN(xScale),
+         yScale, LEN(yScale),
+         fieldValues);
+
+    //get user input
+    char inputX;
+    char inputY;
+    char inputVal;
+    int validInput = 0;
+    while(validInput == 0) {
+        printf("Enter your next move in the format: column row value\n");
+        scanf("%1c %1c %1c", &inputX, &inputY, &inputVal);
+        if (FindIndex(xScale, LEN(xScale), inputX) != -1) {
+            printf("column value '%c' is invalid", inputX);
+        } else {
+            if (FindIndex(yScale, LEN(yScale), inputY) != -1) {
+                printf("row value '%c' is invalid", inputY);
+            } else {
+                if (FindIndex(values, valuesLen, inputVal) != -1) {
+                    printf("value value '%c' is invalid", inputVal);
+                } else {
+                    validInput = 1;
+                }
+            }
+        }
+    }
+
+    setFieldValue(fieldValues,
+                  LEN(fieldValues),
+                  FindIndex(xScale, LEN(xScale), inputX),
+                  FindIndex(yScale, LEN(yScale), inputY),
+                  inputVal);
     return 0;
 }
 
