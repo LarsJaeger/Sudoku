@@ -44,8 +44,8 @@ Draw(char playerName[], const int squareRoot, const char xScale[], int xScaleLen
         if (i % (squareRoot + 1) == 1) {
             continue;
         }
-        frame[0][i] = yScale[i - 2 - ((i - 2) / (squareRoot + 1))];
-        frame[i][0] = xScale[i - 2 - ((i - 2) / (squareRoot + 1))];
+        frame[0][i] = xScale[i - 2 - ((i - 2) / (squareRoot + 1))];
+        frame[i][0] = yScale[i - 2 - ((i - 2) / (squareRoot + 1))];
     }
 
     // print frame
@@ -73,9 +73,17 @@ int main() {
     const char values[] = {'1', '2', '3', '4', '5', '6', '7', '8', '9',};
     //'0', 'A', 'B', 'C', 'D', 'E', 'F'};
     const int valuesLen = LEN(values);
+    if (sizeof(values) == 0) {
+        printf("[ERROR]: values cannot be empty");
+        return 1;
+    }
     if (valuesLen > 36) {
         printf("[ERROR]: more than 36 values, sudokus with more than 36 values would require a major rework,"
                " so they are currently not supported");
+    }
+    if (floor(sqrt(LEN(values))) != ceil(sqrt(LEN(values)))) {
+        printf("[ERROR]: length of values must be a square number");
+        return 1;
     }
 
     //generate scales
@@ -91,29 +99,18 @@ int main() {
             xScale[i] = (char) (i - LEN(alphabet) + '0');
         }
         if (i <= 9) {
-            yScale[i] = (char) (i - 1 + '0');
+            yScale[i] = (char) ((i + 1 ) + '0');
         } else {
             yScale[i] = toupper(alphabet[i - 9]);
         }
     }
 
-
-    if (sizeof(values) == 0) {
-        printf("[ERROR]: values cannot be empty");
-        return 1;
-    }
-    if (floor(sqrt(LEN(values))) != ceil(sqrt(LEN(values)))) {
-        printf("[ERROR]: length of values must be a square number");
-        return 1;
-    }
-
-
     const int squareRoot = (int) sqrt(LEN(values));
     char fieldValues[squareRoot * squareRoot * squareRoot * squareRoot];
-    // fill fieldValues with crap
+    // fill fieldValues with stars
     for (int a = 0; a < squareRoot * squareRoot; a++) {
         for (int b = 0; b < squareRoot * squareRoot; b++) {
-            fieldValues[a * squareRoot * squareRoot + b] = '*';
+            fieldValues[a * squareRoot * squareRoot + b] = ' ';
         }
     }
 
@@ -122,42 +119,48 @@ int main() {
     char name[15];
     scanf("%15s", name);
 
+    int gameFinished = 0;
+    while(gameFinished == 0) {
 
+        Draw(name,
+             squareRoot,
+             xScale, LEN(xScale),
+             yScale, LEN(yScale),
+             fieldValues);
 
-    Draw(name,
-         squareRoot,
-         xScale, LEN(xScale),
-         yScale, LEN(yScale),
-         fieldValues);
-
-    //get user input
-    char inputX;
-    char inputY;
-    char inputVal;
-    int validInput = 0;
-    while(validInput == 0) {
-        printf("Enter your next move in the format: column row value\n");
-        scanf("%1c %1c %1c", &inputX, &inputY, &inputVal);
-        if (FindIndex(xScale, LEN(xScale), inputX) != -1) {
-            printf("column value '%c' is invalid", inputX);
-        } else {
-            if (FindIndex(yScale, LEN(yScale), inputY) != -1) {
-                printf("row value '%c' is invalid", inputY);
+        //clear user input buffer
+        char c;
+        while ((c = getchar()) != '\n' && c != EOF) { }
+        //get user input
+        char inputX;
+        char inputY;
+        char inputVal;
+        int validInput = 0;
+        while (validInput == 0) {
+            printf("Enter your next move in the format: column row value\n");
+            scanf("%1c %1c %1c", &inputX, &inputY, &inputVal);
+            if (FindIndex(xScale, LEN(xScale), inputX) != -1) {
+                printf("column value '%c' is invalid\n", inputX);
             } else {
-                if (FindIndex(values, valuesLen, inputVal) != -1) {
-                    printf("value value '%c' is invalid", inputVal);
+                if (FindIndex(yScale, LEN(yScale), inputY) != -1) {
+                    printf("row value '%c' is invalid\n", inputY);
                 } else {
-                    validInput = 1;
+                    if (FindIndex(values, valuesLen, inputVal) != -1) {
+                        printf("value value '%c' is invalid\n", inputVal);
+                    } else {
+                        validInput = 1;
+                    }
                 }
             }
-        }
-    }
 
-    setFieldValue(fieldValues,
-                  LEN(fieldValues),
-                  FindIndex(xScale, LEN(xScale), inputX),
-                  FindIndex(yScale, LEN(yScale), inputY),
-                  inputVal);
+        }
+        printf("column: %c, row: %c, value: %c \n\n", inputX, inputY, inputVal);
+        setFieldValue(fieldValues,
+                      LEN(fieldValues),
+                      FindIndex(xScale, LEN(xScale), inputX),
+                      FindIndex(yScale, LEN(yScale), inputY),
+                      inputVal);
+    }
     return 0;
 }
 
