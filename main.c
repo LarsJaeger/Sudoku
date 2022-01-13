@@ -58,21 +58,22 @@ Draw(char playerName[], const int squareRoot, const char xScale[], int xScaleLen
     }
 }
 
-int FindIndex(int a[], int size, int value) {
+int FindIndex(char a[], int size, char value) {
     int index = 0;
     while (index < size && a[index] != value) ++index;
     return (index == size ? -1 : index);
 }
 
 void setFieldValue(char field[], int fieldLen, char x, char y, char val) {
+    printf("acolumn: %c, arow: %c, avalue: %c \n\n", x, y, val);
     field[fieldLen * x + y] = val;
 }
 
 int main() {
     // length of values must be a square number
-    const char values[] = {'1', '2', '3', '4', '5', '6', '7', '8', '9',};
-    //'0', 'A', 'B', 'C', 'D', 'E', 'F'};
-    const int valuesLen = LEN(values);
+    const char values[] = {'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
+                           'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
+    const int valuesLen = 36; // LEN(values);
     if (sizeof(values) == 0) {
         printf("[ERROR]: values cannot be empty");
         return 1;
@@ -93,24 +94,32 @@ int main() {
     char xScale[valuesLen];
     char yScale[valuesLen];
     for (int i = 0; i < valuesLen; i++) {
-        if (i <= LEN(alphabet)) {
+        //fill xScale
+        if (i < LEN(alphabet)) {
             xScale[i] = toupper(alphabet[i]);
         } else {
             xScale[i] = (char) (i - LEN(alphabet) + '0');
         }
-        if (i <= 9) {
-            yScale[i] = (char) ((i + 1 ) + '0');
+
+        //fill yScale
+        if (i < 9) {
+            yScale[i] = (char) ((i + 1) + '0');
         } else {
-            yScale[i] = toupper(alphabet[i - 9]);
+            if(i == 9) {
+                yScale[i] = '0';
+            } else {
+                yScale[i] = toupper(alphabet[i - 10]);
+            }
         }
+
     }
 
-    const int squareRoot = (int) sqrt(LEN(values));
+    const int squareRoot = (int) sqrt(valuesLen);
     char fieldValues[squareRoot * squareRoot * squareRoot * squareRoot];
     // fill fieldValues with stars
     for (int a = 0; a < squareRoot * squareRoot; a++) {
         for (int b = 0; b < squareRoot * squareRoot; b++) {
-            fieldValues[a * squareRoot * squareRoot + b] = ' ';
+            fieldValues[a * squareRoot * squareRoot + b] = '*';
         }
     }
 
@@ -120,7 +129,7 @@ int main() {
     scanf("%15s", name);
 
     int gameFinished = 0;
-    while(gameFinished == 0) {
+    while (gameFinished == 0) {
 
         Draw(name,
              squareRoot,
@@ -130,7 +139,7 @@ int main() {
 
         //clear user input buffer
         char c;
-        while ((c = getchar()) != '\n' && c != EOF) { }
+        while ((c = getchar()) != '\n' && c != EOF) {}
         //get user input
         char inputX;
         char inputY;
@@ -139,13 +148,13 @@ int main() {
         while (validInput == 0) {
             printf("Enter your next move in the format: column row value\n");
             scanf("%1c %1c %1c", &inputX, &inputY, &inputVal);
-            if (FindIndex(xScale, LEN(xScale), inputX) != -1) {
+            if (FindIndex(xScale, LEN(xScale), inputX) == -1) {
                 printf("column value '%c' is invalid\n", inputX);
             } else {
-                if (FindIndex(yScale, LEN(yScale), inputY) != -1) {
+                if (FindIndex(yScale, LEN(yScale), inputY) == -1) {
                     printf("row value '%c' is invalid\n", inputY);
                 } else {
-                    if (FindIndex(values, valuesLen, inputVal) != -1) {
+                    if (FindIndex(values, valuesLen, inputVal) == -1) {
                         printf("value value '%c' is invalid\n", inputVal);
                     } else {
                         validInput = 1;

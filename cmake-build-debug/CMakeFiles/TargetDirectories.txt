@@ -1,3 +1,3 @@
-/home/larsjaeger/CLionProjects/Sudoku/cmake-build-debug/CMakeFiles/rebuild_cache.dir
-/home/larsjaeger/CLionProjects/Sudoku/cmake-build-debug/CMakeFiles/edit_cache.dir
-/home/larsjaeger/CLionProjects/Sudoku/cmake-build-debug/CMakeFiles/untitled1.dir
+C:/Users/LARJAEG/CLionProjects/Sudoku/cmake-build-debug/CMakeFiles/untitled1.dir
+C:/Users/LARJAEG/CLionProjects/Sudoku/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/Users/LARJAEG/CLionProjects/Sudoku/cmake-build-debug/CMakeFiles/rebuild_cache.dir
