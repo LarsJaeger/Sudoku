@@ -4,10 +4,8 @@
 
 #define LEN(array) (sizeof(array)/sizeof(array[0]))
 
-void
-Draw(char playerName[], const int squareRoot, const char xScale[], int xScaleLen, const char yScale[], int yScaleLen,
-     char fieldValues[]) {
-
+void Draw(char playerName[], const int squareRoot, const char xScale[], int xScaleLen, const char yScale[],
+          int yScaleLen, char fieldValues[]) {
 
     const int frameSize = 2 + squareRoot * squareRoot + squareRoot;
     char frame[frameSize][frameSize];
@@ -58,32 +56,99 @@ Draw(char playerName[], const int squareRoot, const char xScale[], int xScaleLen
     }
 }
 
-int FindIndex(char a[], int size, char value) {
+int FindIndex(const char a[], int size, char value) {
     int index = 0;
     while (index < size && a[index] != value) ++index;
     return (index == size ? -1 : index);
 }
 
-void setFieldValue(char field[], int fieldLen, char x, char y, char val) {
-    printf("acolumn: %c, arow: %c, avalue: %c \n\n", x, y, val);
-    field[fieldLen * x + y] = val;
+void fillArray(char array[], int arrayLen, char value){
+    for (int i = 0; i < arrayLen; i++) {
+        array[i] = value;
+    }
 }
+
+int CheckField(char field[], int fieldLen, int x, int y) {
+    char sector[fieldLen];
+    fillArray(sector, fieldLen, '\n');
+    //check row
+    for(int yTest = 0; yTest < fieldLen; yTest++) {
+        for(int i = 0; i < fieldLen; i++) {
+            if (sector[i] == '\n') {
+                sector[i] = field[fieldLen * yTest + x];
+            } else if ((field[fieldLen * yTest + x] == sector[i]) && (sector[i] != '*') && (sector[i] != ' ')) {
+                printf("invalid row\n");
+                return 0;
+            }
+        }
+    }
+    fillArray(sector, fieldLen, '\n'); // reset sector
+
+    // check column
+    for(int xTest = 0; xTest < fieldLen; xTest++) {
+        for(int i = 0; i < fieldLen; i++) {
+            if (sector[i] == '\n') {
+                sector[i] = field[fieldLen * xTest + y];
+            } else if ((field[fieldLen * xTest + y] == sector[i]) && (sector[i] != '*') && (sector[i] != ' ')) {
+                printf("invalid column\n");
+                return 0;
+            }
+        }
+    }
+    fillArray(sector, fieldLen, '\n'); // reset sector
+
+    // check subfield
+    // get min max
+    const int squareRoot = (int) sqrt(fieldLen);
+    const int xMinSubfield = (x / squareRoot) * squareRoot;
+    const int xMaxSubfield = ((x / squareRoot) + 1) * squareRoot;
+    const int yMinSubfield = (y / squareRoot) * squareRoot;
+    const int yMaxSubfield = ((y / squareRoot) + 1) * squareRoot;
+    // check
+    for(int xTest = xMinSubfield; xTest < xMaxSubfield; xTest++) {
+        for (int yTest = yMinSubfield; yTest < yMaxSubfield; yTest++) {
+            for (int i = 0; i < fieldLen; i++) {
+                if (sector[i] == '\n') {
+                    sector[i] = field[fieldLen * yTest + x];
+                } else if ((field[fieldLen * yTest + x] == sector[i]) && (sector[i] != '*') && (sector[i] != ' ')) {
+                    printf("invalid subfield\n");
+                    return 0;
+                }
+            }
+        }
+    }
+    return 1;
+}
+
+void SetFieldValue(char field[], int fieldLen, int x, int y, char val) {
+    char previousValue = field[fieldLen * y + x];
+    field[fieldLen * y + x] = val;
+    if (CheckField(field, fieldLen, x, y) == 0) {
+        printf("invalid move\n");
+        field[fieldLen * y + x] = previousValue;
+    }
+}
+
 
 int main() {
     // length of values must be a square number
     const char values[] = {'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
                            'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
-    const int valuesLen = 36; // LEN(values);
-    if (sizeof(values) == 0) {
-        printf("[ERROR]: values cannot be empty");
+
+
+    printf("Enter field size (must be a square number and lower than 36): ");
+    int valuesLen; // LEN(values);
+    scanf("%i", &valuesLen);
+    if (valuesLen == 0) {
+        printf("[ERROR]: field size cannot be 0");
         return 1;
     }
     if (valuesLen > 36) {
-        printf("[ERROR]: more than 36 values, sudokus with more than 36 values would require a major rework,"
+        printf("[ERROR]: you cannot choose more a size bigger than 36, sudokus with more than 36 values would require a major rework,"
                " so they are currently not supported");
     }
-    if (floor(sqrt(LEN(values))) != ceil(sqrt(LEN(values)))) {
-        printf("[ERROR]: length of values must be a square number");
+    if (floor(sqrt(valuesLen)) != ceil(sqrt(valuesLen))) {
+        printf("[ERROR]: field size must be a square number");
         return 1;
     }
 
@@ -139,7 +204,7 @@ int main() {
 
         //clear user input buffer
         char c;
-        while ((c = getchar()) != '\n' && c != EOF) {}
+        while ((c = getchar()) != '\n' ) {}
         //get user input
         char inputX;
         char inputY;
@@ -148,6 +213,7 @@ int main() {
         while (validInput == 0) {
             printf("Enter your next move in the format: column row value\n");
             scanf("%1c %1c %1c", &inputX, &inputY, &inputVal);
+
             if (FindIndex(xScale, LEN(xScale), inputX) == -1) {
                 printf("column value '%c' is invalid\n", inputX);
             } else {
@@ -161,16 +227,12 @@ int main() {
                     }
                 }
             }
-
         }
-        printf("column: %c, row: %c, value: %c \n\n", inputX, inputY, inputVal);
-        setFieldValue(fieldValues,
-                      LEN(fieldValues),
+        SetFieldValue(fieldValues,
+                      squareRoot * squareRoot,
                       FindIndex(xScale, LEN(xScale), inputX),
                       FindIndex(yScale, LEN(yScale), inputY),
                       inputVal);
     }
     return 0;
 }
-
-
