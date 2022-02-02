@@ -1,11 +1,200 @@
 #include <stdio.h>
 #include <math.h>
 #include <ctype.h>
+#include <time.h>
+#include "stack/stack.h"
 
 #define LEN(array) (sizeof(array)/sizeof(array[0]))
 
+typedef struct {
+    int x;
+    int y;
+    char value;
+} PreviousValue;
+
+void UndoLastFieldValue(char field[], int fieldLen, myStack_t *moves);
+
+void FillFieldsRandomly(char fieldValues[], int squareRoot, myStack_t *moves, const char values[]);
+
 void Draw(char playerName[], const int squareRoot, const char xScale[], int xScaleLen, const char yScale[],
-          int yScaleLen, char fieldValues[]) {
+          int yScaleLen, char fieldValues[]);
+
+int FindIndex(const char a[], int size, char value);
+
+int SetFieldValue(char field[], int fieldLen, int x, int y, char val, myStack_t *moves);
+
+int main() {
+    srand(time(NULL));
+
+    // length of values must be a square number
+    // values must not contain '*'
+    const char values[] = {'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
+                           'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
+
+
+    printf("Enter field size (must be a square number and lower than 36): ");
+    int valuesLen; // LEN(values);
+    scanf("%i", &valuesLen);
+    if (valuesLen == 0) {
+        printf("[ERROR]: field size cannot be 0");
+        return 1;
+    }
+    if (valuesLen > 36) {
+        printf("[ERROR]: you cannot choose more a size bigger than 36, sudokus with more than 36 values would require a major rework,"
+               " so they are currently not supported");
+    }
+    if (floor(sqrt(valuesLen)) != ceil(sqrt(valuesLen))) {
+        printf("[ERROR]: field size must be a square number");
+        return 1;
+    }
+
+    //generate scales
+    const char alphabet[26] = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
+                               'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
+                               's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
+    char xScale[valuesLen];
+    char yScale[valuesLen];
+    for (int i = 0; i < valuesLen; i++) {
+        //fill xScale
+        if (i < LEN(alphabet)) {
+            xScale[i] = toupper(alphabet[i]);
+        } else {
+            xScale[i] = (char) (i - LEN(alphabet) + '0');
+        }
+
+        //fill yScale
+        if (i < 9) {
+            yScale[i] = (char) ((i + 1) + '0');
+        } else {
+            if (i == 9) {
+                yScale[i] = '0';
+            } else {
+                yScale[i] = toupper(alphabet[i - 10]);
+            }
+        }
+
+    }
+
+    //create stack for past moves
+    myStack_t *moves;
+    moves = StackNew(sizeof(PreviousValue), valuesLen * valuesLen * valuesLen);
+
+    const int squareRoot = (int) sqrt(valuesLen);
+    char fieldValues[squareRoot * squareRoot * squareRoot * squareRoot];
+
+    // fill fieldValues with stars
+    for (int a = 0; a < squareRoot * squareRoot; a++) {
+        for (int b = 0; b < squareRoot * squareRoot; b++) {
+            fieldValues[a * squareRoot * squareRoot + b] = '*';
+        }
+    }
+
+    // get player name
+    printf("Enter your name: ");
+    char name[15];
+    scanf("%15s", name);
+
+    int gameFinished = 0;
+    while (gameFinished == 0) {
+
+        FillFieldsRandomly(fieldValues, squareRoot, moves, values);
+
+        Draw(name,
+             squareRoot,
+             xScale, LEN(xScale),
+             yScale, LEN(yScale),
+             fieldValues);
+
+        //get user input
+        char inputX;
+        char inputY;
+        char inputVal;
+        int validInput = 0;
+        while (validInput == 0) {
+            printf("Enter 'UNDO' to revoke your last move, or your next move in the format: column row value\n");
+            //clear user input buffer
+            int c;
+            while ((c = getchar()) != '\n' && c != EOF) {}
+
+            scanf("%1c %1c %1c", &inputX, &inputY, &inputVal);
+
+            if (inputX == 'U' && inputY == 'N' && inputVal == 'D') {
+                char undo;
+                scanf("%1c", &undo);
+                if (undo == 'O') {
+                    printf("Your last move will be revoked.\n");
+                    validInput = 1;
+                    UndoLastFieldValue(fieldValues, squareRoot * squareRoot, moves);
+                }
+            } else {
+                if (FindIndex(xScale, LEN(xScale), inputX) == -1) {
+                    printf("column value '%c' is invalid\n", inputX);
+                } else {
+                    if (FindIndex(yScale, LEN(yScale), inputY) == -1) {
+                        printf("row value '%c' is invalid\n", inputY);
+                    } else {
+                        if (FindIndex(values, valuesLen, inputVal) == -1) {
+                            printf("value value '%c' is invalid\n", inputVal);
+                        } else {
+                            validInput = 1;
+                        }
+                    }
+                }
+            }
+        }
+        SetFieldValue(fieldValues,
+                      squareRoot * squareRoot,
+                      FindIndex(xScale, LEN(xScale), inputX),
+                      FindIndex(yScale, LEN(yScale), inputY),
+                      inputVal, moves);
+        const int fieldLen = LEN(fieldValues);
+        gameFinished = 1;
+        for (int i = 0; i < fieldLen; i++) {
+            if (fieldValues[i] == '*') {
+                gameFinished = 0;
+                break;
+            }
+        }
+    }
+    return 0;
+}
+
+void FillFieldsRandomly(char fieldValues[], int squareRoot, myStack_t *moves, const char values[]) {
+    // fill diagonal fields
+    for (int diag_quadrant = 0; diag_quadrant < squareRoot; diag_quadrant++) {
+        const int xMinSubfield = diag_quadrant * squareRoot;
+        const int xMaxSubfield = (diag_quadrant + 1) * squareRoot;
+        const int yMinSubfield = diag_quadrant * squareRoot;
+        const int yMaxSubfield = (diag_quadrant + 1) * squareRoot;
+        for (int yTest = yMinSubfield; yTest < yMaxSubfield; yTest++) {
+            printf("\nL");
+            for (int xTest = xMinSubfield; xTest < xMaxSubfield; xTest++) {
+                printf("\nA");
+                const int start_val = rand() % (squareRoot * squareRoot);
+                for (int i = start_val; i < start_val + (squareRoot * squareRoot); i++) {
+                    printf("\nT");
+                    printf(" %i %i %c",xTest, yTest, values[i % (squareRoot * squareRoot)]);
+                    if (SetFieldValue(fieldValues, squareRoot * squareRoot, xTest, yTest, values[i % (squareRoot * squareRoot)], moves) == 1) {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void UndoLastFieldValue(char *field, int fieldLen, myStack_t *moves) {
+    PreviousValue previousValue;
+    Pop(moves, &previousValue);
+    int testX = previousValue.x;
+    int testY = previousValue.y;
+    char testValue = previousValue.value;
+    printf("after pop: %i %i %1c \n", previousValue.x, previousValue.y, previousValue.value);
+    field[fieldLen * previousValue.y + previousValue.x] = previousValue.value;
+}
+
+void Draw(char *playerName, const int squareRoot, const char *xScale, int xScaleLen, const char *yScale, int yScaleLen,
+          char *fieldValues) {
 
     const int frameSize = 2 + squareRoot * squareRoot + squareRoot;
     char frame[frameSize][frameSize];
@@ -47,7 +236,7 @@ void Draw(char playerName[], const int squareRoot, const char xScale[], int xSca
     }
 
     // print frame
-    printf("%s\n", playerName);
+    printf("\n%s\n", playerName);
     for (int i = 0; i < frameSize; i++) {
         for (int j = 0; j < frameSize; j++) {
             printf("%c", frame[i][j]);
@@ -56,183 +245,45 @@ void Draw(char playerName[], const int squareRoot, const char xScale[], int xSca
     }
 }
 
-int FindIndex(const char a[], int size, char value) {
+int FindIndex(const char *a, int size, char value) {
     int index = 0;
     while (index < size && a[index] != value) ++index;
     return (index == size ? -1 : index);
 }
 
-void fillArray(char array[], int arrayLen, char value){
-    for (int i = 0; i < arrayLen; i++) {
-        array[i] = value;
-    }
-}
-
-int CheckField(char field[], int fieldLen, int x, int y) {
-    char sector[fieldLen];
-    fillArray(sector, fieldLen, '\n');
-    //check row
-    for(int yTest = 0; yTest < fieldLen; yTest++) {
-        for(int i = 0; i < fieldLen; i++) {
-            if (sector[i] == '\n') {
-                sector[i] = field[fieldLen * yTest + x];
-            } else if ((field[fieldLen * yTest + x] == sector[i]) && (sector[i] != '*') && (sector[i] != ' ')) {
-                printf("invalid row\n");
-                return 0;
-            }
+int SetFieldValue(char *field, int fieldLen, int x, int y, char val, myStack_t *moves) {
+    for (int yTest = 0; yTest < fieldLen; yTest++) {
+        if(field[fieldLen * yTest + x] == val) {
+            return 0;
         }
     }
-    fillArray(sector, fieldLen, '\n'); // reset sector
-
-    // check column
-    for(int xTest = 0; xTest < fieldLen; xTest++) {
-        for(int i = 0; i < fieldLen; i++) {
-            if (sector[i] == '\n') {
-                sector[i] = field[fieldLen * xTest + y];
-            } else if ((field[fieldLen * xTest + y] == sector[i]) && (sector[i] != '*') && (sector[i] != ' ')) {
-                printf("invalid column\n");
-                return 0;
-            }
+    for (int xTest = 0; xTest < fieldLen; xTest++) {
+        if(field[fieldLen * y + xTest] == val) {
+            return 0;
         }
     }
-    fillArray(sector, fieldLen, '\n'); // reset sector
-
-    // check subfield
-    // get min max
     const int squareRoot = (int) sqrt(fieldLen);
     const int xMinSubfield = (x / squareRoot) * squareRoot;
     const int xMaxSubfield = ((x / squareRoot) + 1) * squareRoot;
     const int yMinSubfield = (y / squareRoot) * squareRoot;
     const int yMaxSubfield = ((y / squareRoot) + 1) * squareRoot;
     // check
-    for(int xTest = xMinSubfield; xTest < xMaxSubfield; xTest++) {
-        for (int yTest = yMinSubfield; yTest < yMaxSubfield; yTest++) {
-            for (int i = 0; i < fieldLen; i++) {
-                if (sector[i] == '\n') {
-                    sector[i] = field[fieldLen * yTest + x];
-                } else if ((field[fieldLen * yTest + x] == sector[i]) && (sector[i] != '*') && (sector[i] != ' ')) {
-                    printf("invalid subfield\n");
-                    return 0;
-                }
+    for (int yTest = yMinSubfield; yTest < yMaxSubfield; yTest++) {
+        const int xIndex = fieldLen * yTest;
+        for (int xTest = xMinSubfield; xTest < xMaxSubfield; xTest++) {
+            if(field[xIndex + xTest] == val) {
+                return 0;
             }
         }
     }
+
+    PreviousValue previousValue;
+    previousValue.x = x;
+    previousValue.y = y;
+    previousValue.value = field[fieldLen * y + x];
+
+    field[fieldLen * y + x] = val;
+    Push(moves, &previousValue);
     return 1;
 }
 
-void SetFieldValue(char field[], int fieldLen, int x, int y, char val) {
-    char previousValue = field[fieldLen * y + x];
-    field[fieldLen * y + x] = val;
-    if (CheckField(field, fieldLen, x, y) == 0) {
-        printf("invalid move\n");
-        field[fieldLen * y + x] = previousValue;
-    }
-}
-
-
-int main() {
-    // length of values must be a square number
-    const char values[] = {'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
-                           'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
-
-
-    printf("Enter field size (must be a square number and lower than 36): ");
-    int valuesLen; // LEN(values);
-    scanf("%i", &valuesLen);
-    if (valuesLen == 0) {
-        printf("[ERROR]: field size cannot be 0");
-        return 1;
-    }
-    if (valuesLen > 36) {
-        printf("[ERROR]: you cannot choose more a size bigger than 36, sudokus with more than 36 values would require a major rework,"
-               " so they are currently not supported");
-    }
-    if (floor(sqrt(valuesLen)) != ceil(sqrt(valuesLen))) {
-        printf("[ERROR]: field size must be a square number");
-        return 1;
-    }
-
-    //generate scales
-    const char alphabet[26] = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
-                               'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
-                               's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
-    char xScale[valuesLen];
-    char yScale[valuesLen];
-    for (int i = 0; i < valuesLen; i++) {
-        //fill xScale
-        if (i < LEN(alphabet)) {
-            xScale[i] = toupper(alphabet[i]);
-        } else {
-            xScale[i] = (char) (i - LEN(alphabet) + '0');
-        }
-
-        //fill yScale
-        if (i < 9) {
-            yScale[i] = (char) ((i + 1) + '0');
-        } else {
-            if(i == 9) {
-                yScale[i] = '0';
-            } else {
-                yScale[i] = toupper(alphabet[i - 10]);
-            }
-        }
-
-    }
-
-    const int squareRoot = (int) sqrt(valuesLen);
-    char fieldValues[squareRoot * squareRoot * squareRoot * squareRoot];
-    // fill fieldValues with stars
-    for (int a = 0; a < squareRoot * squareRoot; a++) {
-        for (int b = 0; b < squareRoot * squareRoot; b++) {
-            fieldValues[a * squareRoot * squareRoot + b] = '*';
-        }
-    }
-
-    // get player name
-    printf("Enter your name: ");
-    char name[15];
-    scanf("%15s", name);
-
-    int gameFinished = 0;
-    while (gameFinished == 0) {
-
-        Draw(name,
-             squareRoot,
-             xScale, LEN(xScale),
-             yScale, LEN(yScale),
-             fieldValues);
-
-        //clear user input buffer
-        char c;
-        while ((c = getchar()) != '\n' ) {}
-        //get user input
-        char inputX;
-        char inputY;
-        char inputVal;
-        int validInput = 0;
-        while (validInput == 0) {
-            printf("Enter your next move in the format: column row value\n");
-            scanf("%1c %1c %1c", &inputX, &inputY, &inputVal);
-
-            if (FindIndex(xScale, LEN(xScale), inputX) == -1) {
-                printf("column value '%c' is invalid\n", inputX);
-            } else {
-                if (FindIndex(yScale, LEN(yScale), inputY) == -1) {
-                    printf("row value '%c' is invalid\n", inputY);
-                } else {
-                    if (FindIndex(values, valuesLen, inputVal) == -1) {
-                        printf("value value '%c' is invalid\n", inputVal);
-                    } else {
-                        validInput = 1;
-                    }
-                }
-            }
-        }
-        SetFieldValue(fieldValues,
-                      squareRoot * squareRoot,
-                      FindIndex(xScale, LEN(xScale), inputX),
-                      FindIndex(yScale, LEN(yScale), inputY),
-                      inputVal);
-    }
-    return 0;
-}
