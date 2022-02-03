@@ -23,6 +23,10 @@ int FindIndex(const char a[], int size, char value);
 
 int SetFieldValue(char field[], int fieldLen, int x, int y, char val, myStack_t *moves);
 
+int FillRemainingFields(char field[], int fieldLen, const char values[], myStack_t *moves);
+
+int RekursivFill(char field[], const char values[], int line, int row, int squareRoot, myStack_t *moves);
+
 int main() {
     srand(time(NULL));
 
@@ -77,7 +81,7 @@ int main() {
 
     //create stack for past moves
     myStack_t *moves;
-    moves = StackNew(sizeof(PreviousValue), valuesLen * valuesLen * valuesLen);
+    moves = StackNew(sizeof(PreviousValue), valuesLen * valuesLen * valuesLen * valuesLen * valuesLen);
 
     const int squareRoot = (int) sqrt(valuesLen);
     char fieldValues[squareRoot * squareRoot * squareRoot * squareRoot];
@@ -159,6 +163,7 @@ int main() {
     return 0;
 }
 
+
 void FillFieldsRandomly(char fieldValues[], int squareRoot, myStack_t *moves, const char values[]) {
     // fill diagonal fields
     for (int diag_quadrant = 0; diag_quadrant < squareRoot; diag_quadrant++) {
@@ -167,21 +172,36 @@ void FillFieldsRandomly(char fieldValues[], int squareRoot, myStack_t *moves, co
         const int yMinSubfield = diag_quadrant * squareRoot;
         const int yMaxSubfield = (diag_quadrant + 1) * squareRoot;
         for (int yTest = yMinSubfield; yTest < yMaxSubfield; yTest++) {
-            printf("\nL");
             for (int xTest = xMinSubfield; xTest < xMaxSubfield; xTest++) {
-                printf("\nA");
                 const int start_val = rand() % (squareRoot * squareRoot);
                 for (int i = start_val; i < start_val + (squareRoot * squareRoot); i++) {
-                    printf("\nT");
-                    printf(" %i %i %c",xTest, yTest, values[i % (squareRoot * squareRoot)]);
-                    if (SetFieldValue(fieldValues, squareRoot * squareRoot, xTest, yTest, values[i % (squareRoot * squareRoot)], moves) == 1) {
+                    if (SetFieldValue(fieldValues, squareRoot * squareRoot, xTest, yTest,
+                                      values[i % (squareRoot * squareRoot)], moves) == 1) {
                         break;
                     }
                 }
             }
         }
     }
+    RekursivFill(fieldValues, values,0,0, squareRoot, moves);
 }
+
+int FillRemainingFields(char *field, int fieldLen, const char values[], myStack_t *moves) {
+    for (int j = 0; j < fieldLen * fieldLen; j++) {
+        if (field[j] == '*') {
+            const int start_val = rand() % fieldLen;
+            for (int i = start_val; i < start_val + fieldLen; i++) {
+                if (SetFieldValue(field, fieldLen, j % fieldLen, j % fieldLen,
+                                  values[i % fieldLen], moves) == 1) {
+                    break;
+                } else if (i == start_val + fieldLen) {
+                    UndoLastFieldValue(field, fieldLen, moves);
+                }
+            }
+        }
+    }
+}
+
 
 void UndoLastFieldValue(char *field, int fieldLen, myStack_t *moves) {
     PreviousValue previousValue;
@@ -189,7 +209,6 @@ void UndoLastFieldValue(char *field, int fieldLen, myStack_t *moves) {
     int testX = previousValue.x;
     int testY = previousValue.y;
     char testValue = previousValue.value;
-    printf("after pop: %i %i %1c \n", previousValue.x, previousValue.y, previousValue.value);
     field[fieldLen * previousValue.y + previousValue.x] = previousValue.value;
 }
 
@@ -253,12 +272,12 @@ int FindIndex(const char *a, int size, char value) {
 
 int SetFieldValue(char *field, int fieldLen, int x, int y, char val, myStack_t *moves) {
     for (int yTest = 0; yTest < fieldLen; yTest++) {
-        if(field[fieldLen * yTest + x] == val) {
+        if (field[fieldLen * yTest + x] == val) {
             return 0;
         }
     }
     for (int xTest = 0; xTest < fieldLen; xTest++) {
-        if(field[fieldLen * y + xTest] == val) {
+        if (field[fieldLen * y + xTest] == val) {
             return 0;
         }
     }
@@ -271,7 +290,7 @@ int SetFieldValue(char *field, int fieldLen, int x, int y, char val, myStack_t *
     for (int yTest = yMinSubfield; yTest < yMaxSubfield; yTest++) {
         const int xIndex = fieldLen * yTest;
         for (int xTest = xMinSubfield; xTest < xMaxSubfield; xTest++) {
-            if(field[xIndex + xTest] == val) {
+            if (field[xIndex + xTest] == val) {
                 return 0;
             }
         }
@@ -285,5 +304,47 @@ int SetFieldValue(char *field, int fieldLen, int x, int y, char val, myStack_t *
     field[fieldLen * y + x] = val;
     Push(moves, &previousValue);
     return 1;
+}
+
+int RekursivFill(char *field, const char *values, int line, int row, int squareRoot, myStack_t *moves) {
+    if (row >= (squareRoot * squareRoot) && line >= (squareRoot * squareRoot))
+        return 1;
+
+
+    if (row >= (squareRoot * squareRoot)) {
+        if (line < (squareRoot * squareRoot) - 1) {
+            line++;
+            row = 0;
+        }
+    }
+
+    if (line >= (squareRoot * squareRoot) - squareRoot && row >= (squareRoot * squareRoot) - squareRoot) {
+        line++;
+        row = 0;
+        if (line >= (squareRoot * squareRoot)) {
+            return 1;
+        }
+
+    }
+
+    if (squareRoot > line < (squareRoot * squareRoot) - squareRoot && row == (int) (line / squareRoot) * squareRoot)
+        row = row + squareRoot;
+
+    if (line < squareRoot && row < squareRoot)
+        row = squareRoot;
+
+
+    const int start_val = rand() % (squareRoot * squareRoot);
+    for (int testZahl = start_val; testZahl < start_val + (squareRoot * squareRoot); testZahl++) {
+        if (SetFieldValue(field, squareRoot * squareRoot, row, line, values[testZahl % (squareRoot * squareRoot)],
+                          moves) == 1) {
+            if (RekursivFill(field, values, line, row + 1, squareRoot, moves) == 1) {
+                return 1;
+            }
+            UndoLastFieldValue(field, squareRoot * squareRoot,moves);
+
+        }
+    }
+    return 0;
 }
 
