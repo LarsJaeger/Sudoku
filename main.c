@@ -23,9 +23,13 @@ int FindIndex(const char a[], int size, char value);
 
 int SetFieldValue(char field[], int fieldLen, int x, int y, char val, myStack_t *moves);
 
-int FillRemainingFields(char field[], int fieldLen, const char values[], myStack_t *moves);
+int PlayerSetFieldValue(char field[], char startValues[], int fieldLen, int x, int y, char val, myStack_t *moves);
 
 int RekursivFill(char field[], const char values[], int line, int row, int squareRoot, myStack_t *moves);
+
+void HideRandomly(char field[], int fieldLen);
+
+void CopyArray(char i_array[], int i_array_size, char o_array[], int o_array_size);
 
 int main() {
     srand(time(NULL));
@@ -98,10 +102,15 @@ int main() {
     char name[15];
     scanf("%15s", name);
 
+    //generate start values
+    FillFieldsRandomly(fieldValues, squareRoot, moves, values);
+    HideRandomly(fieldValues, squareRoot * squareRoot * squareRoot * squareRoot);
+    char startValues[LEN(fieldValues)];
+    CopyArray(fieldValues, LEN(fieldValues), startValues, LEN(startValues));
+
     int gameFinished = 0;
     while (gameFinished == 0) {
 
-        FillFieldsRandomly(fieldValues, squareRoot, moves, values);
 
         Draw(name,
              squareRoot,
@@ -146,7 +155,8 @@ int main() {
                 }
             }
         }
-        SetFieldValue(fieldValues,
+        PlayerSetFieldValue(fieldValues,
+                      startValues,
                       squareRoot * squareRoot,
                       FindIndex(xScale, LEN(xScale), inputX),
                       FindIndex(yScale, LEN(yScale), inputY),
@@ -183,25 +193,8 @@ void FillFieldsRandomly(char fieldValues[], int squareRoot, myStack_t *moves, co
             }
         }
     }
-    RekursivFill(fieldValues, values,0,0, squareRoot, moves);
+    RekursivFill(fieldValues, values, 0, 0, squareRoot, moves);
 }
-
-int FillRemainingFields(char *field, int fieldLen, const char values[], myStack_t *moves) {
-    for (int j = 0; j < fieldLen * fieldLen; j++) {
-        if (field[j] == '*') {
-            const int start_val = rand() % fieldLen;
-            for (int i = start_val; i < start_val + fieldLen; i++) {
-                if (SetFieldValue(field, fieldLen, j % fieldLen, j % fieldLen,
-                                  values[i % fieldLen], moves) == 1) {
-                    break;
-                } else if (i == start_val + fieldLen) {
-                    UndoLastFieldValue(field, fieldLen, moves);
-                }
-            }
-        }
-    }
-}
-
 
 void UndoLastFieldValue(char *field, int fieldLen, myStack_t *moves) {
     PreviousValue previousValue;
@@ -341,10 +334,41 @@ int RekursivFill(char *field, const char *values, int line, int row, int squareR
             if (RekursivFill(field, values, line, row + 1, squareRoot, moves) == 1) {
                 return 1;
             }
-            UndoLastFieldValue(field, squareRoot * squareRoot,moves);
+            UndoLastFieldValue(field, squareRoot * squareRoot, moves);
 
         }
     }
     return 0;
 }
 
+void HideRandomly(char field[], int fieldLen) {
+    for (int i = 0; i < fieldLen - 17; i++) {
+        int fieldSet = 0;
+        while (fieldSet == 0) {
+            int index = rand() % fieldLen;
+            if (field[index] != '*') {
+                field[index] = '*';
+                fieldSet = 1;
+            }
+        }
+    }
+}
+
+void CopyArray(char i_array[], int i_array_size, char o_array[], int o_array_size){
+    if(i_array_size > o_array_size) {
+        printf("[ERROR]: o_array is too small for i_array");
+        return;
+    }
+    for (int i = 0; i < i_array_size; i++) {
+        o_array[i] = i_array[i];
+    }
+}
+
+int PlayerSetFieldValue(char field[], char startValues[], int fieldLen, int x, int y, char val, myStack_t *moves) {
+    if(startValues[fieldLen * y + x] != '*') {
+        printf("This field cannot be set as it is part of the start values!");
+        return 0;
+    } else {
+        SetFieldValue(field, fieldLen, x, y, val, moves);
+    }
+}
