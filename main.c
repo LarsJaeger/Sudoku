@@ -5,6 +5,9 @@
 #include "stack/stack.h"
 
 #define LEN(array) (sizeof(array)/sizeof(array[0]))
+#define KWHT  "\x1B[37m"   // white
+#define KNRM  "\x1B[0m"    // normal
+
 
 typedef struct {
     int x;
@@ -17,13 +20,13 @@ void UndoLastFieldValue(char field[], int fieldLen, myStack_t *moves);
 void FillFieldsRandomly(char fieldValues[], int squareRoot, myStack_t *moves, const char values[]);
 
 void Draw(char playerName[], const int squareRoot, const char xScale[], int xScaleLen, const char yScale[],
-          int yScaleLen, char fieldValues[]);
+          int yScaleLen, char fieldValues[], char solution[]);
 
 int FindIndex(const char a[], int size, char value);
 
-int SetFieldValue(char field[], int fieldLen, int x, int y, char val, myStack_t *moves);
+int SetFieldValue(char field[], int fieldLen, int x, int y, char val, myStack_t *moves, int checkingEnabled);
 
-int PlayerSetFieldValue(char field[], char startValues[], int fieldLen, int x, int y, char val, myStack_t *moves);
+int PlayerSetFieldValue(char field[], char startValues[], int fieldLen, int x, int y, char val, myStack_t *moves, int checkingEnabled);
 
 int RekursivFill(char field[], const char values[], int line, int row, int squareRoot, myStack_t *moves);
 
@@ -104,11 +107,15 @@ int main() {
 
     //generate start values
     FillFieldsRandomly(fieldValues, squareRoot, moves, values);
+    char solution[LEN(fieldValues)];
+    CopyArray(fieldValues, LEN(fieldValues), solution, LEN(solution));
     HideRandomly(fieldValues, squareRoot * squareRoot * squareRoot * squareRoot);
     char startValues[LEN(fieldValues)];
     CopyArray(fieldValues, LEN(fieldValues), startValues, LEN(startValues));
 
     int gameFinished = 0;
+    int solutionShown = 0;
+    int checkingEnabled = 1;
     while (gameFinished == 0) {
 
 
@@ -116,15 +123,16 @@ int main() {
              squareRoot,
              xScale, LEN(xScale),
              yScale, LEN(yScale),
-             fieldValues);
+             fieldValues, solution);
 
         //get user input
         char inputX;
         char inputY;
         char inputVal;
         int validInput = 0;
+        int setInput = 0;
         while (validInput == 0) {
-            printf("Enter 'UNDO' to revoke your last move, or your next move in the format: column row value\n");
+            printf("Enter 'UNDO' to revoke your last move, or your next move in the format: column row value.\n You can disable rule checking by typing 'NOCHECK', and to enable it again type 'CHECK' \n You can also show the solution by typing 'SHOW' and hide it again by entering 'HIDE' \n Type 'END' to stop the game.");
             //clear user input buffer
             int c;
             while ((c = getchar()) != '\n' && c != EOF) {}
@@ -138,8 +146,82 @@ int main() {
                     printf("Your last move will be revoked.\n");
                     validInput = 1;
                     UndoLastFieldValue(fieldValues, squareRoot * squareRoot, moves);
+                    continue;
                 }
-            } else {
+            }
+            else if(inputX == 'S' && inputY == 'H' & inputVal == 'O') {
+                char undo;
+                scanf("%1c", &undo);
+                if (undo == 'W') {
+                    if(solutionShown == 1) {
+                        printf("The solution is already shown.");
+                        continue;
+                    }
+                    printf("The solution will be shown.\n");
+                    validInput = 1;
+                    // show solution
+                    char tmp[squareRoot * squareRoot * squareRoot * squareRoot];
+                    CopyArray(fieldValues, LEN(fieldValues), tmp, LEN(tmp));
+                    CopyArray(solution, LEN(solution),fieldValues, LEN(fieldValues));
+                    CopyArray(tmp, LEN(tmp), solution, LEN(solution));
+                    solutionShown = 1;
+                    continue;
+                }
+            }
+            else if(inputX == 'H' && inputY == 'I' & inputVal == 'D') {
+                char undo;
+                scanf("%1c", &undo);
+                if (undo == 'E') {
+                    if(solutionShown == 0) {
+                        printf("The solution is already hidden.");
+                        continue;
+                    }
+                    printf("The solution will be hidden.\n");
+                    validInput = 1;
+                    // hide solution
+
+                    char tmp[squareRoot * squareRoot * squareRoot * squareRoot];
+                    CopyArray(fieldValues, LEN(fieldValues), tmp, LEN(tmp));
+                    CopyArray(solution, LEN(solution),fieldValues, LEN(fieldValues));
+                    CopyArray(tmp, LEN(tmp), solution, LEN(solution));
+                    solutionShown = 0;
+                    continue;
+                }
+            }
+            else if(inputX == 'C' && inputY == 'H' & inputVal == 'E') {
+                char undo;
+                char char2;
+                scanf("%1c %1c", &undo, &char2);
+                if (undo == 'C' && char2 == 'K') {
+                    printf("Number checking is now enabled.\n");
+                    validInput = 1;
+                    checkingEnabled = 1;
+                    solutionShown = 0;
+                    continue;
+                }
+            }
+            else if(inputX == 'N' && inputY == 'O' & inputVal == 'C') {
+                char undo;
+                char char2;
+                char char3;
+                char char4;
+                scanf("%1c %1c %1c %1c", &undo, &char2, &char3, &char4);
+                if (undo == 'H' && char2 == 'E' && char3 == 'C' && char4 == 'K') {
+                    printf("Number checking is now disabled.\n");
+                    validInput = 1;
+                    checkingEnabled = 0;
+                    solutionShown = 0;
+                    continue;
+                }
+            }
+            else if(inputX == 'E' && inputY == 'N' & inputVal == 'D') {
+
+                printf("The game has been stopped.\n");
+                return 0;
+            }
+
+
+            else {
                 if (FindIndex(xScale, LEN(xScale), inputX) == -1) {
                     printf("column value '%c' is invalid\n", inputX);
                 } else {
@@ -150,29 +232,35 @@ int main() {
                             printf("value value '%c' is invalid\n", inputVal);
                         } else {
                             validInput = 1;
+                            setInput = 1;
                         }
                     }
                 }
             }
         }
-        PlayerSetFieldValue(fieldValues,
-                      startValues,
-                      squareRoot * squareRoot,
-                      FindIndex(xScale, LEN(xScale), inputX),
-                      FindIndex(yScale, LEN(yScale), inputY),
-                      inputVal, moves);
-        const int fieldLen = LEN(fieldValues);
-        gameFinished = 1;
-        for (int i = 0; i < fieldLen; i++) {
-            if (fieldValues[i] == '*') {
-                gameFinished = 0;
-                break;
+        if(setInput == 1) {
+            if (solutionShown == 0) {
+                PlayerSetFieldValue(fieldValues,
+                                    startValues,
+                                    squareRoot * squareRoot,
+                                    FindIndex(xScale, LEN(xScale), inputX),
+                                    FindIndex(yScale, LEN(yScale), inputY),
+                                    inputVal, moves, checkingEnabled);
+                const int fieldLen = LEN(fieldValues);
+                gameFinished = 1;
+                for (int i = 0; i < fieldLen; i++) {
+                    if (fieldValues[i] == '*') {
+                        gameFinished = 0;
+                        break;
+                    }
+                }
+            } else {
+                printf("The solution is still shown, please hide it by entering 'HIDE'");
             }
         }
     }
     return 0;
 }
-
 
 void FillFieldsRandomly(char fieldValues[], int squareRoot, myStack_t *moves, const char values[]) {
     // fill diagonal fields
@@ -186,7 +274,7 @@ void FillFieldsRandomly(char fieldValues[], int squareRoot, myStack_t *moves, co
                 const int start_val = rand() % (squareRoot * squareRoot);
                 for (int i = start_val; i < start_val + (squareRoot * squareRoot); i++) {
                     if (SetFieldValue(fieldValues, squareRoot * squareRoot, xTest, yTest,
-                                      values[i % (squareRoot * squareRoot)], moves) == 1) {
+                                      values[i % (squareRoot * squareRoot)], moves, 1) == 1) {
                         break;
                     }
                 }
@@ -206,7 +294,7 @@ void UndoLastFieldValue(char *field, int fieldLen, myStack_t *moves) {
 }
 
 void Draw(char *playerName, const int squareRoot, const char *xScale, int xScaleLen, const char *yScale, int yScaleLen,
-          char *fieldValues) {
+          char *fieldValues, char *solution) {
 
     const int frameSize = 2 + squareRoot * squareRoot + squareRoot;
     char frame[frameSize][frameSize];
@@ -246,12 +334,17 @@ void Draw(char *playerName, const int squareRoot, const char *xScale, int xScale
         frame[0][i] = xScale[i - 2 - ((i - 2) / (squareRoot + 1))];
         frame[i][0] = yScale[i - 2 - ((i - 2) / (squareRoot + 1))];
     }
-
     // print frame
     printf("\n%s\n", playerName);
     for (int i = 0; i < frameSize; i++) {
         for (int j = 0; j < frameSize; j++) {
-            printf("%c", frame[i][j]);
+            if(solution[(i - 2 - ((i - 2) / (squareRoot + 1))) * squareRoot * squareRoot +
+                           (j - 2 - ((j - 2) / (squareRoot + 1)))] == '*') {
+                printf("%s%c%s", KWHT, frame[i][j], KNRM);
+            }
+            else {
+                printf("%c", frame[i][j]);
+            }
         }
         printf(" \n");
     }
@@ -263,32 +356,33 @@ int FindIndex(const char *a, int size, char value) {
     return (index == size ? -1 : index);
 }
 
-int SetFieldValue(char *field, int fieldLen, int x, int y, char val, myStack_t *moves) {
-    for (int yTest = 0; yTest < fieldLen; yTest++) {
-        if (field[fieldLen * yTest + x] == val) {
-            return 0;
-        }
-    }
-    for (int xTest = 0; xTest < fieldLen; xTest++) {
-        if (field[fieldLen * y + xTest] == val) {
-            return 0;
-        }
-    }
-    const int squareRoot = (int) sqrt(fieldLen);
-    const int xMinSubfield = (x / squareRoot) * squareRoot;
-    const int xMaxSubfield = ((x / squareRoot) + 1) * squareRoot;
-    const int yMinSubfield = (y / squareRoot) * squareRoot;
-    const int yMaxSubfield = ((y / squareRoot) + 1) * squareRoot;
-    // check
-    for (int yTest = yMinSubfield; yTest < yMaxSubfield; yTest++) {
-        const int xIndex = fieldLen * yTest;
-        for (int xTest = xMinSubfield; xTest < xMaxSubfield; xTest++) {
-            if (field[xIndex + xTest] == val) {
+int SetFieldValue(char *field, int fieldLen, int x, int y, char val, myStack_t *moves, int checkingEnabled) {
+    if(checkingEnabled == 1) {
+        for (int yTest = 0; yTest < fieldLen; yTest++) {
+            if (field[fieldLen * yTest + x] == val) {
                 return 0;
             }
         }
+        for (int xTest = 0; xTest < fieldLen; xTest++) {
+            if (field[fieldLen * y + xTest] == val) {
+                return 0;
+            }
+        }
+        const int squareRoot = (int) sqrt(fieldLen);
+        const int xMinSubfield = (x / squareRoot) * squareRoot;
+        const int xMaxSubfield = ((x / squareRoot) + 1) * squareRoot;
+        const int yMinSubfield = (y / squareRoot) * squareRoot;
+        const int yMaxSubfield = ((y / squareRoot) + 1) * squareRoot;
+        // check
+        for (int yTest = yMinSubfield; yTest < yMaxSubfield; yTest++) {
+            const int xIndex = fieldLen * yTest;
+            for (int xTest = xMinSubfield; xTest < xMaxSubfield; xTest++) {
+                if (field[xIndex + xTest] == val) {
+                    return 0;
+                }
+            }
+        }
     }
-
     PreviousValue previousValue;
     previousValue.x = x;
     previousValue.y = y;
@@ -330,7 +424,7 @@ int RekursivFill(char *field, const char *values, int line, int row, int squareR
     const int start_val = rand() % (squareRoot * squareRoot);
     for (int testZahl = start_val; testZahl < start_val + (squareRoot * squareRoot); testZahl++) {
         if (SetFieldValue(field, squareRoot * squareRoot, row, line, values[testZahl % (squareRoot * squareRoot)],
-                          moves) == 1) {
+                          moves, 1) == 1) {
             if (RekursivFill(field, values, line, row + 1, squareRoot, moves) == 1) {
                 return 1;
             }
@@ -342,7 +436,7 @@ int RekursivFill(char *field, const char *values, int line, int row, int squareR
 }
 
 void HideRandomly(char field[], int fieldLen) {
-    for (int i = 0; i < fieldLen - 17; i++) {
+    for (int i = 0; i < fieldLen - 18; i++) {
         int fieldSet = 0;
         while (fieldSet == 0) {
             int index = rand() % fieldLen;
@@ -364,11 +458,11 @@ void CopyArray(char i_array[], int i_array_size, char o_array[], int o_array_siz
     }
 }
 
-int PlayerSetFieldValue(char field[], char startValues[], int fieldLen, int x, int y, char val, myStack_t *moves) {
+int PlayerSetFieldValue(char field[], char startValues[], int fieldLen, int x, int y, char val, myStack_t *moves, int checkingEnabled) {
     if(startValues[fieldLen * y + x] != '*') {
         printf("This field cannot be set as it is part of the start values!");
         return 0;
     } else {
-        SetFieldValue(field, fieldLen, x, y, val, moves);
+        SetFieldValue(field, fieldLen, x, y, val, moves, checkingEnabled);
     }
 }
