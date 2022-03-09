@@ -123,7 +123,7 @@ int main() {
              squareRoot,
              xScale, LEN(xScale),
              yScale, LEN(yScale),
-             fieldValues, solution);
+             fieldValues, startValues);
 
         //get user input
         char inputX;
@@ -294,7 +294,7 @@ void UndoLastFieldValue(char *field, int fieldLen, myStack_t *moves) {
 }
 
 void Draw(char *playerName, const int squareRoot, const char *xScale, int xScaleLen, const char *yScale, int yScaleLen,
-          char *fieldValues, char *solution) {
+          char *fieldValues, char *start_values) {
 
     const int frameSize = 2 + squareRoot * squareRoot + squareRoot;
     char frame[frameSize][frameSize];
@@ -338,8 +338,10 @@ void Draw(char *playerName, const int squareRoot, const char *xScale, int xScale
     printf("\n%s\n", playerName);
     for (int i = 0; i < frameSize; i++) {
         for (int j = 0; j < frameSize; j++) {
-            if(solution[(i - 2 - ((i - 2) / (squareRoot + 1))) * squareRoot * squareRoot +
-                           (j - 2 - ((j - 2) / (squareRoot + 1)))] == '*') {
+            if(((j % (squareRoot + 1) != 1) && (i != 0)) && ((i % (squareRoot + 1) != 1) && (j != 0))
+            && (i != 1) && (j != 1)
+            && (start_values[(i - 2 - ((i - 2) / (squareRoot + 1))) * squareRoot * squareRoot +
+                           (j - 2 - ((j - 2) / (squareRoot + 1)))] == '*')) {
                 printf("%s%c%s", KWHT, frame[i][j], KNRM);
             }
             else {
